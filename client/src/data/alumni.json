@@ -7,7 +7,7 @@
     "cidade": "São Paulo",
     "estado": "SP",
     "empresa": "Tech Solutions",
-    "foto": "https://via.placeholder.com/150"
+    "foto": "https://i.pravatar.cc/150?u=1"
   },
   {
     "id": 2,
@@ -17,7 +17,7 @@
     "cidade": "Rio de Janeiro",
     "estado": "RJ",
     "empresa": "Energy Corp",
-    "foto": "https://via.placeholder.com/150"
+    "foto": "https://i.pravatar.cc/150?u=2"
   },
   {
     "id": 3,
@@ -27,7 +27,7 @@
     "cidade": "Curitiba",
     "estado": "PR",
     "empresa": "AutoParts Brasil",
-    "foto": "https://via.placeholder.com/150"
+    "foto": "https://i.pravatar.cc/150?u=3"
   },
   {
     "id": 4,
@@ -37,7 +37,7 @@
     "cidade": "Brasília",
     "estado": "DF",
     "empresa": "GovBuild",
-    "foto": "https://via.placeholder.com/150"
+    "foto": "https://i.pravatar.cc/150?u=4"
   },
   {
     "id": 5,
@@ -47,7 +47,7 @@
     "cidade": "Belo Horizonte",
     "estado": "MG",
     "empresa": "ChipDesign",
-    "foto": "https://via.placeholder.com/150"
+    "foto": "https://i.pravatar.cc/150?u=5"
   },
   {
     "id": 6,
@@ -57,7 +57,7 @@
     "cidade": "Salvador",
     "estado": "BA",
     "empresa": "BioFuel Tech",
-    "foto": "https://via.placeholder.com/150"
+    "foto": "https://i.pravatar.cc/150?u=6"
   },
   {
     "id": 7,
@@ -67,7 +67,7 @@
     "cidade": "Florianópolis",
     "estado": "SC",
     "empresa": "GameDev Studio",
-    "foto": "https://via.placeholder.com/150"
+    "foto": "https://i.pravatar.cc/150?u=7"
   },
   {
     "id": 8,
@@ -77,6 +77,6 @@
     "cidade": "Porto Alegre",
     "estado": "RS",
     "empresa": "HeavyMachinery",
-    "foto": "https://via.placeholder.com/150"
+    "foto": "https://i.pravatar.cc/150?u=8"
   }
 ]
