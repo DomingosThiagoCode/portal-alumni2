@@ -1,6 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './AddAlumniModal.css';
 
+import { useCountryLocations } from '../hooks/useCountryLocations';
+
+import {
+  normalizeYear,
+  normalizeBrDate,
+  brToIso,
+  isoToBr,
+  applyPtBrValidityMessage,
+  getBirthDateBoundsIso,
+  validateBirthDate,
+  validateGraduationYear,
+  validatePhone,
+} from '../utils/alumniFormUtils';
+
 const DEFAULT_COURSES = [
   'Engenharia Cartográfica',
   'Engenharia da Computação',
@@ -12,129 +26,6 @@ const DEFAULT_COURSES = [
   'Engenharia Mecânica',
   'Engenharia Química',
 ];
-
-const initialForm = {
-  fullName: '',
-  preferredName: '',
-  birthDate: '', // dd/mm/aaaa
-  course: '',
-  graduationYear: '',
-  stateUf: '', // "RJ"
-  city: '',
-  organization: '',
-  role: '',
-  email: '',
-  phone: '',
-  linkedinUser: '',
-  bio: '',
-  photoFile: null,
-  photoPreviewUrl: '',
-};
-
-function normalizeYear(value) {
-  return value.replace(/\D/g, '').slice(0, 4);
-}
-
-function normalizeBrDate(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 8);
-  const dd = digits.slice(0, 2);
-  const mm = digits.slice(2, 4);
-  const yyyy = digits.slice(4, 8);
-
-  let out = dd;
-  if (mm) out += `/${mm}`;
-  if (yyyy) out += `/${yyyy}`;
-  return out;
-}
-
-function brToIso(br) {
-  const m = br.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!m) return '';
-
-  const dd = Number(m[1]);
-  const mm = Number(m[2]);
-  const yyyy = Number(m[3]);
-
-  // valida se a data existe de verdade (ex: 31/02 não passa)
-  const date = new Date(Date.UTC(yyyy, mm - 1, dd));
-  const ok =
-    date.getUTCFullYear() === yyyy &&
-    date.getUTCMonth() === mm - 1 &&
-    date.getUTCDate() === dd;
-
-  if (!ok) return '';
-  return `${yyyy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(
-    2,
-    '0',
-  )}`;
-}
-
-function isoToBr(iso) {
-  if (!iso) return '';
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return '';
-  return `${m[3]}/${m[2]}/${m[1]}`;
-}
-
-function applyPtBrValidityMessage(el) {
-  el.setCustomValidity('');
-
-  if (el.validity.valueMissing) {
-    el.setCustomValidity('Preencha este campo.');
-    return;
-  }
-
-  if (el.validity.typeMismatch && el.type === 'email') {
-    el.setCustomValidity('Digite um email válido.');
-    return;
-  }
-
-  if (el.validity.patternMismatch) {
-    if (el.name === 'graduationYear') {
-      el.setCustomValidity('Digite um ano válido com 4 dígitos (ex: 2020).');
-      return;
-    }
-    if (el.name === 'birthDate') {
-      el.setCustomValidity('Use o formato dd/mm/aaaa.');
-      return;
-    }
-    el.setCustomValidity('Formato inválido.');
-  }
-}
-
-const COMMON_EMAIL_DOMAINS = new Set([
-  'gmail.com',
-  'hotmail.com',
-  'outlook.com',
-  'live.com',
-  'yahoo.com',
-  'icloud.com',
-  'proton.me',
-  'protonmail.com',
-  'uol.com.br',
-  'bol.com.br',
-  'ig.com.br',
-  'terra.com.br',
-]);
-
-function getEmailStatus(valueRaw) {
-  const value = valueRaw.trim().toLowerCase();
-  if (!value) return { status: 'empty', message: '' };
-
-  const basicOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-  if (!basicOk)
-    return { status: 'invalid', message: 'Formato de email inválido' };
-
-  const domain = value.split('@')[1] || '';
-  if (COMMON_EMAIL_DOMAINS.has(domain)) {
-    return { status: 'valid', message: 'Email válido' };
-  }
-
-  return {
-    status: 'uncommon',
-    message: 'Domínio não comum, verifique se está correto',
-  };
-}
 
 const DEFAULT_ROLE_GROUPS = [
   {
@@ -176,28 +67,58 @@ const DEFAULT_ROLE_GROUPS = [
   },
 ];
 
+// MOCK vindo do "login"
+const MOCK_FULL_NAME = 'João da Silva Filho';
+const MOCK_EMAIL = 'joao.silva@gmail.com';
+
+const initialForm = {
+  fullName: MOCK_FULL_NAME,
+  preferredName: '',
+  birthDate: '',
+
+  course: '',
+  graduationYear: '',
+
+  countryIso2: '',
+  stateUf: '',
+  city: '',
+
+  organization: '',
+  role: '',
+  email: MOCK_EMAIL,
+  phone: '',
+  linkedinUser: '',
+  bio: '',
+
+  photoFile: null,
+  photoPreviewUrl: '',
+};
+
 export default function AddAlumniModal({
   isOpen = true,
   onClose,
   onSubmit,
-  courses = DEFAULT_COURSES, // aqui entra a lista completa
+  courses = DEFAULT_COURSES,
   roles = DEFAULT_ROLE_GROUPS,
 }) {
   const [form, setForm] = useState(initialForm);
   const [extraErrors, setExtraErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // controla quando mostrar borda/erro de required (só após tentativa de enviar)
   const [showValidation, setShowValidation] = useState(false);
 
-  // IBGE: UFs e cidades
-  const [ufs, setUfs] = useState([]);
-  const [cities, setCities] = useState([]);
-  const [loadingUfs, setLoadingUfs] = useState(false);
-  const [loadingCities, setLoadingCities] = useState(false);
+  const birthBounds = useMemo(() => getBirthDateBoundsIso(110), []);
 
-  // input date escondido pra abrir o calendário, mantendo o campo digitável
+  // refs pra bolha nativa (reportValidity)
+  const formRef = useRef(null);
+  const birthInputRef = useRef(null);
+  const gradYearInputRef = useRef(null);
+  const phoneInputRef = useRef(null);
+
+  // input date escondido pra abrir o calendário
   const hiddenDateRef = useRef(null);
+
+  const { countries, states, cities, loadingStates, loadingCities, isBrazil } =
+    useCountryLocations(isOpen, form.countryIso2, form.stateUf);
 
   function setField(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -213,88 +134,26 @@ export default function AddAlumniModal({
     setShowValidation(false);
   }, [isOpen]);
 
-  // carrega UFs (IBGE) ao abrir
+  // País mudou -> zera Estado e Cidade
   useEffect(() => {
     if (!isOpen) return;
+    setForm((prev) => ({ ...prev, stateUf: '', city: '' }));
+    setExtraErrors((prev) => ({ ...prev, stateUf: '', city: '' }));
+  }, [isOpen, form.countryIso2]);
 
-    let cancelled = false;
-    const ctrl = new AbortController();
-
-    async function loadUfs() {
-      try {
-        setLoadingUfs(true);
-        const res = await fetch(
-          'https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome',
-          { signal: ctrl.signal },
-        );
-        const data = await res.json();
-        if (!cancelled) setUfs(Array.isArray(data) ? data : []);
-      } catch {
-        if (!cancelled) setUfs([]);
-      } finally {
-        if (!cancelled) setLoadingUfs(false);
-      }
-    }
-
-    loadUfs();
-    return () => {
-      cancelled = true;
-      ctrl.abort();
-    };
-  }, [isOpen]);
-
-  // UF mudou -> zera cidade e busca municípios daquela UF
+  // Estado mudou -> zera Cidade
   useEffect(() => {
     if (!isOpen) return;
-
     setForm((prev) => ({ ...prev, city: '' }));
-    setCities([]);
+    setExtraErrors((prev) => ({ ...prev, city: '' }));
+  }, [isOpen, form.stateUf]);
 
-    if (!form.stateUf || !ufs.length) return;
-
-    const ufObj = ufs.find((u) => u.sigla === form.stateUf);
-    if (!ufObj?.id) return;
-
-    let cancelled = false;
-    const ctrl = new AbortController();
-
-    async function loadCities() {
-      try {
-        setLoadingCities(true);
-        const res = await fetch(
-          `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${ufObj.id}/municipios?orderBy=nome`,
-          { signal: ctrl.signal },
-        );
-        const data = await res.json();
-
-        if (!cancelled) {
-          setCities(
-            Array.isArray(data) ? data.map((m) => m.nome).filter(Boolean) : [],
-          );
-        }
-      } catch {
-        if (!cancelled) setCities([]);
-      } finally {
-        if (!cancelled) setLoadingCities(false);
-      }
-    }
-
-    loadCities();
-    return () => {
-      cancelled = true;
-      ctrl.abort();
-    };
-  }, [isOpen, form.stateUf, ufs]);
-
-  // evita leak de preview de imagem
+  // evita leak de preview de imagem (correto)
   useEffect(() => {
     return () => {
       if (form.photoPreviewUrl) URL.revokeObjectURL(form.photoPreviewUrl);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const emailInfo = useMemo(() => getEmailStatus(form.email), [form.email]);
+  }, [form.photoPreviewUrl]);
 
   function openCalendar() {
     const el = hiddenDateRef.current;
@@ -305,6 +164,8 @@ export default function AddAlumniModal({
 
   function handleHiddenDateChange(e) {
     setField('birthDate', isoToBr(e.target.value));
+    setExtraErrors((prev) => ({ ...prev, birthDate: '' }));
+    birthInputRef.current?.setCustomValidity('');
   }
 
   function handlePhotoChange(e) {
@@ -334,15 +195,45 @@ export default function AddAlumniModal({
     setExtraErrors((prev) => ({ ...prev, photoFile: '' }));
   }
 
+  // helper: seta erro detalhado embaixo + bolha "Corrija sua informação"
+  function setCustomFieldError(ref, fieldName, message) {
+    setExtraErrors((prev) => ({ ...prev, [fieldName]: message || '' }));
+    if (ref?.current) {
+      ref.current.setCustomValidity(message ? 'Corrija sua informação' : '');
+    }
+  }
+
+  function runCustomValidations() {
+    // 1) nascimento coerente (<= 110 anos e não futuro)
+    const birthMsg = validateBirthDate(
+      form.birthDate,
+      birthBounds.minIso,
+      birthBounds.maxIso,
+    );
+    setCustomFieldError(birthInputRef, 'birthDate', birthMsg);
+
+    // 2) ano de formatura não pode ser futuro
+    const gradMsg = validateGraduationYear(form.graduationYear);
+    setCustomFieldError(gradYearInputRef, 'graduationYear', gradMsg);
+
+    // 3) telefone: opcional, mas se preenchido deve estar ok
+    const phoneMsg = validatePhone(form.phone);
+    setCustomFieldError(phoneInputRef, 'phone', phoneMsg);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setShowValidation(true);
 
-    if (form.birthDate.trim() && !brToIso(form.birthDate.trim())) {
-      setExtraErrors((prev) => ({
-        ...prev,
-        birthDate: 'Use dd/mm/aaaa e uma data real.',
-      }));
+    // roda nossas 3 validações
+    runCustomValidations();
+
+    // dispara bolhas nativas (required/pattern + nossas custom)
+    const formEl = formRef.current;
+    if (formEl && !formEl.checkValidity()) {
+      formEl.reportValidity();
+      const firstInvalid = formEl.querySelector(':invalid');
+      firstInvalid?.focus();
       return;
     }
 
@@ -350,22 +241,31 @@ export default function AddAlumniModal({
       setIsSubmitting(true);
 
       const payload = {
-        fullName: form.fullName.trim(),
+        fullName: form.fullName.trim(), // vem do login
+        email: form.email.trim(), // vem do login (mock)
         preferredName: form.preferredName.trim(),
+
         birthDate: form.birthDate.trim()
           ? brToIso(form.birthDate.trim())
           : null,
+
         course: form.course,
-        graduationYear: Number(form.graduationYear),
-        state: form.stateUf,
+        graduationYear: form.graduationYear
+          ? Number(form.graduationYear)
+          : null,
+
+        country: form.countryIso2,
+        state: form.stateUf, // BR = sigla, fora BR = isoCode do estado
         city: form.city,
+
         organization: form.organization.trim(),
         role: form.role,
-        email: form.email.trim(),
         phone: form.phone.trim(),
+
         linkedinUrl: form.linkedinUser.trim()
           ? `https://linkedin.com/in/${form.linkedinUser.trim()}`
           : '',
+
         bio: form.bio.trim(),
         photoFile: form.photoFile || null,
       };
@@ -395,9 +295,9 @@ export default function AddAlumniModal({
         </header>
 
         <form
+          ref={formRef}
           className={`form ${showValidation ? 'validated' : ''}`}
           onSubmit={handleSubmit}
-          // quando o browser detectar inválido, a gente liga o "modo validação"
           onInvalidCapture={() => setShowValidation(true)}
         >
           {/* FOTO */}
@@ -448,11 +348,24 @@ export default function AddAlumniModal({
                 <input
                   name="fullName"
                   value={form.fullName}
-                  onChange={(e) => setField('fullName', e.target.value)}
-                  placeholder="Digite seu nome completo"
+                  readOnly
+                  aria-readonly="true"
+                  className="readonly"
                   required
-                  onInvalid={(e) => applyPtBrValidityMessage(e.target)}
-                  onInput={(e) => e.target.setCustomValidity('')}
+                />
+              }
+            />
+
+            <Field
+              label="Email"
+              input={
+                <input
+                  name="email"
+                  type="text"
+                  value={form.email}
+                  readOnly
+                  aria-readonly="true"
+                  className="readonly"
                 />
               }
             />
@@ -471,11 +384,11 @@ export default function AddAlumniModal({
 
             <Field
               label="Data de Aniversário"
-              hint="Você pode digitar (dd/mm/aaaa) ou usar o calendário."
               error={extraErrors.birthDate}
               input={
                 <div className="dateRow">
                   <input
+                    ref={birthInputRef}
                     name="birthDate"
                     value={form.birthDate}
                     onChange={(e) =>
@@ -483,13 +396,24 @@ export default function AddAlumniModal({
                     }
                     placeholder="dd/mm/aaaa"
                     inputMode="numeric"
+                    maxLength={10}
                     pattern="^\d{2}\/\d{2}\/\d{4}$"
                     onInvalid={(e) => applyPtBrValidityMessage(e.target)}
                     onInput={(e) => {
                       e.target.setCustomValidity('');
                       setExtraErrors((prev) => ({ ...prev, birthDate: '' }));
                     }}
+                    onBlur={() => {
+                      // validação coerente também no blur
+                      const msg = validateBirthDate(
+                        form.birthDate,
+                        birthBounds.minIso,
+                        birthBounds.maxIso,
+                      );
+                      setCustomFieldError(birthInputRef, 'birthDate', msg);
+                    }}
                   />
+
                   <button
                     type="button"
                     className="calendarBtn"
@@ -498,10 +422,13 @@ export default function AddAlumniModal({
                   >
                     📅
                   </button>
+
                   <input
                     ref={hiddenDateRef}
                     className="hiddenDate"
                     type="date"
+                    min={birthBounds.minIso}
+                    max={birthBounds.maxIso}
                     value={brToIso(form.birthDate) || ''}
                     onChange={handleHiddenDateChange}
                     tabIndex={-1}
@@ -511,7 +438,6 @@ export default function AddAlumniModal({
               }
             />
 
-            {/* CURSOS COMPLETOS */}
             <Field
               label="Curso"
               required
@@ -537,8 +463,10 @@ export default function AddAlumniModal({
             <Field
               label="Ano de Formatura"
               required
+              error={extraErrors.graduationYear}
               input={
                 <input
+                  ref={gradYearInputRef}
                   name="graduationYear"
                   value={form.graduationYear}
                   onChange={(e) =>
@@ -549,8 +477,45 @@ export default function AddAlumniModal({
                   required
                   pattern="^\d{4}$"
                   onInvalid={(e) => applyPtBrValidityMessage(e.target)}
-                  onInput={(e) => e.target.setCustomValidity('')}
+                  onInput={(e) => {
+                    e.target.setCustomValidity('');
+                    setExtraErrors((prev) => ({
+                      ...prev,
+                      graduationYear: '',
+                    }));
+                  }}
+                  onBlur={() => {
+                    const msg = validateGraduationYear(form.graduationYear);
+                    setCustomFieldError(
+                      gradYearInputRef,
+                      'graduationYear',
+                      msg,
+                    );
+                  }}
                 />
+              }
+            />
+
+            {/* País -> Estado -> Cidade */}
+            <Field
+              label="País"
+              required
+              input={
+                <select
+                  name="countryIso2"
+                  value={form.countryIso2}
+                  onChange={(e) => setField('countryIso2', e.target.value)}
+                  required
+                  onInvalid={(e) => applyPtBrValidityMessage(e.target)}
+                  onInput={(e) => e.target.setCustomValidity('')}
+                >
+                  <option value="">Selecione o país</option>
+                  {countries.map((c) => (
+                    <option key={c.iso2} value={c.iso2}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               }
             />
 
@@ -563,18 +528,21 @@ export default function AddAlumniModal({
                   value={form.stateUf}
                   onChange={(e) => setField('stateUf', e.target.value)}
                   required
-                  disabled={loadingUfs}
+                  disabled={!form.countryIso2 || loadingStates}
                   onInvalid={(e) => applyPtBrValidityMessage(e.target)}
                   onInput={(e) => e.target.setCustomValidity('')}
                 >
                   <option value="">
-                    {loadingUfs
+                    {!form.countryIso2
+                      ? 'Primeiro selecione o país'
+                      : loadingStates
                       ? 'Carregando estados...'
                       : 'Selecione o estado'}
                   </option>
-                  {ufs.map((u) => (
-                    <option key={u.id} value={u.sigla}>
-                      {u.sigla}
+
+                  {states.map((s) => (
+                    <option key={`${s.code}-${s.name}`} value={s.code}>
+                      {isBrazil ? `${s.code} - ${s.name}` : s.name}
                     </option>
                   ))}
                 </select>
@@ -601,6 +569,7 @@ export default function AddAlumniModal({
                       ? 'Carregando cidades...'
                       : 'Selecione a cidade'}
                   </option>
+
                   {cities.map((city) => (
                     <option key={city} value={city}>
                       {city}
@@ -617,7 +586,7 @@ export default function AddAlumniModal({
                   name="organization"
                   value={form.organization}
                   onChange={(e) => setField('organization', e.target.value)}
-                  placeholder="Sua empresa/instituição atual"
+                  placeholder="Sua empresa/instituição actual"
                 />
               }
             />
@@ -645,44 +614,24 @@ export default function AddAlumniModal({
             />
 
             <Field
-              label="Email"
-              input={
-                <div>
-                  <div className={`emailWrap email-${emailInfo.status}`}>
-                    <input
-                      name="email"
-                      type="email"
-                      value={form.email}
-                      onChange={(e) => setField('email', e.target.value)}
-                      placeholder="seu.email@exemplo.com"
-                      onInvalid={(e) => applyPtBrValidityMessage(e.target)}
-                      onInput={(e) => e.target.setCustomValidity('')}
-                    />
-                    {emailInfo.status !== 'empty' ? (
-                      <span className="emailIcon" aria-hidden="true">
-                        {emailInfo.status === 'valid' ? '✓' : '!'}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  {emailInfo.status !== 'empty' ? (
-                    <p className={`emailMsg email-${emailInfo.status}`}>
-                      {emailInfo.message}
-                    </p>
-                  ) : null}
-                </div>
-              }
-            />
-
-            <Field
               label="Telefone (Nacional/Internacional)"
-              hint="Para números internacionais, inclua o código do país: +55 (Brasil), +1 (EUA), etc."
+              hint="Opcional. Se internacional, inclua o DDI (+55, +1...)."
+              error={extraErrors.phone}
               input={
                 <input
+                  ref={phoneInputRef}
                   name="phone"
                   value={form.phone}
                   onChange={(e) => setField('phone', e.target.value)}
                   placeholder="ex: (11) 99999-9999 ou +55 11 99999-9999"
+                  onInput={(e) => {
+                    e.target.setCustomValidity('');
+                    setExtraErrors((prev) => ({ ...prev, phone: '' }));
+                  }}
+                  onBlur={() => {
+                    const msg = validatePhone(form.phone);
+                    setCustomFieldError(phoneInputRef, 'phone', msg);
+                  }}
                 />
               }
             />
@@ -742,10 +691,6 @@ export default function AddAlumniModal({
   );
 }
 
-/**
- * Field: componente “wrapper” pra manter o layout consistente:
- * label + required (*) + input + hint/erro.
- */
 function Field({ label, required, hint, error, input, fullWidth }) {
   return (
     <div className={`field ${fullWidth ? 'fullWidth' : ''}`}>
