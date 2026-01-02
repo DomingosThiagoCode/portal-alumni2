@@ -454,7 +454,7 @@ export default function AddAlumniModal({
                     placeholder="dd/mm/aaaa"
                     inputMode="numeric"
                     maxLength={10}
-                    pattern="^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                    pattern="^[0-9]{2}/[0-9]{2}/[0-9]{4}$"
                     onInvalid={(e) => applyPtBrValidityMessage(e.target)}
                     onInput={(e) => {
                       e.target.setCustomValidity('');
