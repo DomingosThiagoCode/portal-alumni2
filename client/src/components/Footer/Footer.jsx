@@ -22,13 +22,13 @@ const Footer = () => {
         {/* Lado Direito: Social e Links */}
         <div className={styles.rightSection}>
           <div className={styles.socialIcons}>
-            <a href="#" className={styles.iconCircle}><Linkedin size={20} fill="currentColor" /></a>
-            <a href="#" className={styles.iconCircle}><Facebook size={20} fill="currentColor" /></a>
-            <a href="#" className={styles.iconCircle}><Youtube size={20} fill="currentColor" /></a>
-            <a href="#" className={styles.iconCircle}><Instagram size={20} /></a>
+            <a href="https://www.linkedin.com/company/alumniime" className={styles.iconCircle}><Linkedin size={20} fill="currentColor" /></a>
+            <a href="https://www.facebook.com/AlumniIME" className={styles.iconCircle}><Facebook size={20} fill="currentColor" /></a>
+            <a href="https://www.youtube.com/c/AlumniIME/featured" className={styles.iconCircle}><Youtube size={20} fill="currentColor" /></a>
+            <a href="https://www.instagram.com/alumniime/" className={styles.iconCircle}><Instagram size={20} /></a>
           </div>
 
-          <a href="#" className={styles.legalLink}>
+          <a href="https://alumniime.com.br/politica-de-privacidade" className={styles.legalLink}>
             Termos de Uso e Política de Privacidade
           </a>
         </div>
