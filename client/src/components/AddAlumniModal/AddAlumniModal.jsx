@@ -247,8 +247,9 @@ export default function AddAlumniModal({
           setIsEditing(true);
 
           isHydratingRef.current = true;
-          pendingCityRef.current = p.city || '';
-          pendingComplementRef.current = p.addressComplement || '';
+          pendingCityRef.current = (p.city || '').trim();
+          pendingComplementRef.current = (p.addressComplement || '').trim();
+          isHydratingRef.current = true;
 
           setForm((prev) => ({
             ...prev,
@@ -339,62 +340,61 @@ export default function AddAlumniModal({
   }, [isOpen, form.stateUf, hasStates]);
 
   //  aplica city e addressComplement pendentes depois que país/estado/cidades estiverem prontos
-  // ✅ aplica city e addressComplement pendentes depois que país/estado/cidades estiverem prontos
+
   useEffect(() => {
     if (!isOpen) return;
-    if (!isHydratingRef.current) return;
 
-    const pendingCity = pendingCityRef.current;
-    const pendingComplement = pendingComplementRef.current;
+    const pendingCity = (pendingCityRef.current || '').trim();
+    const pendingComplement = (pendingComplementRef.current || '').trim();
 
-    if (!pendingCity && !pendingComplement) {
-      isHydratingRef.current = false;
-      return;
-    }
+    // nada pendente
+    if (!pendingCity && !pendingComplement) return;
 
-    // se tem estados, espera stateUf
+    // espera país
+    if (!form.countryIso2) return;
+
+    // se o país tem estados, espera estado
     if (hasStates && !form.stateUf) return;
 
-    // se for um país onde a cidade vem de select (lista real), espera carregar
-    const mustWaitCitiesList =
-      hasStates && !needsAddressComplement && !allowManualCity;
-    if (mustWaitCitiesList && loadingCities) return;
+    // se é modo "select de cidades", espera carregar as cidades
+    if (!needsAddressComplement && loadingCities) return;
+
+    // normaliza lista pra comparar com segurança
+    const citySet = new Set((cities || []).map((c) => String(c).trim()));
 
     setForm((prev) => {
       const next = { ...prev };
 
-      // ✅ CITY:
-      // - país sem estados -> cidade é manual -> seta direto
-      // - país com estado mas sem cidades (needsAddressComplement) -> seta direto
-      // - allowManualCity -> seta direto
-      // - senão, só seta se existir na lista
-      if (pendingCity && !prev.city) {
-        if (!hasStates || needsAddressComplement || allowManualCity) {
-          next.city = pendingCity;
-        } else if (Array.isArray(cities) && cities.includes(pendingCity)) {
-          next.city = pendingCity;
+      // aplica city
+      if (!next.city && pendingCity) {
+        if (!next.city && pendingCity) {
+          next.city = pendingCity; // seta sempre (a UI resolve com fallback option)
+        } else {
+          // modo select: só seta se existir na lista
+          if (citySet.has(pendingCity)) next.city = pendingCity;
         }
       }
 
-      // ✅ COMPLEMENTO:
-      if (pendingComplement && !prev.addressComplement) {
+      // aplica complemento (opcional)
+      if (!next.addressComplement && pendingComplement) {
         next.addressComplement = pendingComplement;
       }
 
       return next;
     });
 
+    // só limpa depois de aplicar
     pendingCityRef.current = '';
     pendingComplementRef.current = '';
     isHydratingRef.current = false;
   }, [
     isOpen,
+    form.countryIso2,
+    form.stateUf,
     hasStates,
     needsAddressComplement,
-    allowManualCity,
     loadingCities,
     cities,
-    form.stateUf,
   ]);
 
   // evita leak de preview de imagem (correto)
@@ -851,9 +851,19 @@ export default function AddAlumniModal({
                             : 'Selecione a cidade'}
                         </option>
 
+                        {/*  fallback: se a cidade salva não estiver na lista, cria uma opção pra ela */}
+                        {form.city &&
+                        !loadingCities &&
+                        Array.isArray(cities) &&
+                        !cities.includes(String(form.city).trim()) ? (
+                          <option value={String(form.city).trim()}>
+                            {String(form.city).trim()} (salvo)
+                          </option>
+                        ) : null}
+
                         {cities.map((city) => (
-                          <option key={city} value={city}>
-                            {city}
+                          <option key={city} value={String(city).trim()}>
+                            {String(city).trim()}
                           </option>
                         ))}
                       </select>
