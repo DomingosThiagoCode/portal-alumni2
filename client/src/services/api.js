@@ -21,5 +21,6 @@ export const login = (payload) => api.post('/auth/login', payload);
 // Me
 export const getMe = () => api.get('/me');
 export const upsertMyProfile = (payload) => api.put('/me/profile', payload);
+export const getMyProfile = () => api.get('/me/profile');
 
 export default api;

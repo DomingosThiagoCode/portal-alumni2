@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './AddAlumniModal.css';
-import { getMe } from '../../services/api';
+import { getMe, getMyProfile } from '../../services/api';
 
 import { useCountryLocations } from '../hooks/useCountryLocations';
 
@@ -170,6 +170,13 @@ export default function AddAlumniModal({
   // Se selecionar um país SEM estados, some Estado/Cidade e entra "Complemento / Cidade".
   const showStateAndCity = !form.countryIso2 || hasStates;
 
+  //ref pra cidade
+  const isHydratingRef = useRef(false);
+  const pendingCityRef = useRef('');
+
+  //Em relaçao a se o perfil esta criado ou não, se ele existe é só editar
+  const [isEditing, setIsEditing] = useState(false);
+
   function setField(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
     setExtraErrors((prev) => ({ ...prev, [name]: '' }));
@@ -219,14 +226,71 @@ export default function AddAlumniModal({
 
     (async () => {
       try {
+        // 1) sempre pega dados da conta (users)
         const res = await getMe();
-        const me = res.data; // axios
+        const me = res.data;
 
         setForm((prev) => ({
           ...prev,
           fullName: me.fullName || '',
           email: me.email || '',
         }));
+
+        // 2) tenta pegar o perfil (alumni)
+        try {
+          const profRes = await getMyProfile();
+          const p = profRes.data;
+
+          isHydratingRef.current = true;
+          pendingCityRef.current = p.city || '';
+
+          setForm((prev) => ({
+            ...prev,
+
+            preferredName: p.preferredName || '',
+
+            // birthDate vem ISO -> converte pra dd/mm/aaaa
+            birthDate: p.birthDate
+              ? isoToBr(String(p.birthDate).slice(0, 10))
+              : '',
+
+            course: p.course || '',
+            graduationYear: p.graduationYear ? String(p.graduationYear) : '',
+
+            countryIso2: p.country || '',
+            stateUf: p.state || '',
+            city: '', // não setei city aqui pq tava bugando quando puxava pra editar
+            addressComplement: p.addressComplement || '',
+
+            organization: p.organization || '',
+            role: p.role || '',
+            phone: p.phone || '',
+
+            // linkedinUrl -> username
+            linkedinUser: (p.linkedinUrl || '')
+              .replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, '')
+              .replace(/\/$/, ''),
+
+            bio: p.bio || '',
+
+            // skills pode vir array ou string
+            skills: Array.isArray(p.skills)
+              ? p.skills
+              : typeof p.skills === 'string' && p.skills.trim()
+              ? p.skills
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [],
+          }));
+        } catch (err) {
+          // 404 = não tem perfil ainda (normal)
+          if (err?.response?.status !== 404) {
+            console.error(err);
+          }
+        }
+
+        setExtraErrors((prev) => ({ ...prev, _form: '' }));
       } catch (err) {
         console.error(err);
         setExtraErrors((prev) => ({
@@ -240,6 +304,8 @@ export default function AddAlumniModal({
   // País mudou -> zera Estado, Cidade e Complemento
   useEffect(() => {
     if (!isOpen) return;
+    if (isHydratingRef.current) return;
+
     setForm((prev) => ({
       ...prev,
       stateUf: '',
@@ -253,9 +319,32 @@ export default function AddAlumniModal({
   useEffect(() => {
     if (!isOpen) return;
     if (!hasStates) return;
+    if (isHydratingRef.current) return;
+
     setForm((prev) => ({ ...prev, city: '', addressComplement: '' }));
     setExtraErrors((prev) => ({ ...prev, city: '' }));
   }, [isOpen, form.stateUf, hasStates]);
+  //para resolver o problema de carregamento das cidades
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const pendingCity = pendingCityRef.current;
+    if (!pendingCity) return;
+
+    // espera a lista de cidades carregar
+    if (loadingCities) return;
+
+    // quando a lista existir, aplica a cidade
+    if (cities?.length && cities.includes(pendingCity)) {
+      setField('city', pendingCity);
+      pendingCityRef.current = '';
+      isHydratingRef.current = false;
+      return;
+    }
+
+    // fallback: se não achou na lista, pelo menos libera a hidratação
+    isHydratingRef.current = false;
+  }, [isOpen, loadingCities, cities, setField]);
 
   // evita leak de preview de imagem (correto)
   useEffect(() => {
@@ -915,7 +1004,13 @@ export default function AddAlumniModal({
               className="submitButton"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Adicionando...' : 'Adicionar Perfil'}
+              {isSubmitting
+                ? isEditing
+                  ? 'Salvando...'
+                  : 'Adicionando...'
+                : isEditing
+                ? 'Salvar Alterações'
+                : 'Adicionar Perfil'}
             </button>
           </footer>
         </form>

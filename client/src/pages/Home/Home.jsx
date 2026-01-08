@@ -6,8 +6,7 @@ import Modal from '../../components/Modal/Modal';
 import Footer from '../../components/Footer/Footer';
 import AddAlumniModal from '../../components/AddAlumniModal/AddAlumniModal';
 import { Search } from 'lucide-react';
-
-import { getAlumni, upsertMyProfile } from '../../services/api';
+import { getAlumni, upsertMyProfile, getMyProfile } from '../../services/api';
 
 // Estilos
 import styles from './Home.module.css';
@@ -22,7 +21,7 @@ const Home = ({ isLoggedIn, setIsLoggedIn }) => {
   const [selectedAno, setSelectedAno] = useState('');
   const [selectedAlumni, setSelectedAlumni] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-
+  const [hasProfile, setHasProfile] = useState(false);
   async function fetchAlumni() {
     setLoading(true);
     try {
@@ -39,6 +38,17 @@ const Home = ({ isLoggedIn, setIsLoggedIn }) => {
     fetchAlumni();
   }, []);
 
+  //Botao virar EDITAR
+
+  useEffect(() => {
+    if (!isLoggedIn) return setHasProfile(false);
+
+    getMyProfile()
+      .then(() => setHasProfile(true))
+      .catch((err) => {
+        if (err?.response?.status === 404) setHasProfile(false);
+      });
+  }, [isLoggedIn]);
   // --- LÓGICA DE DADOS ---
 
   const filteredAlumni = useMemo(() => {
@@ -80,6 +90,7 @@ const Home = ({ isLoggedIn, setIsLoggedIn }) => {
         isLoggedIn={isLoggedIn}
         setIsLoggedIn={setIsLoggedIn}
         onAddClick={() => setIsAddModalOpen(true)}
+        addLabel={hasProfile ? 'Editar Perfil' : 'Adicionar Perfil'}
       />
 
       <main className={styles.container}>

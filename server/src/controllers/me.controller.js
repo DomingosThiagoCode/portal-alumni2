@@ -95,5 +95,32 @@ async function upsertProfile(req, res, next) {
     next(err);
   }
 }
+async function getMyProfile(req, res, next) {
+  try {
+    const userId = req.userId || req.user?.id || req.user?.sub;
 
-module.exports = { me, upsertProfile };
+    let profile = null;
+
+    // dependendo do nome do campo no Prisma, tenta userId ou user_id
+    try {
+      profile = await prisma.alumnus.findUnique({ where: { userId } });
+    } catch (_) {}
+
+    if (!profile) {
+      try {
+        profile = await prisma.alumnus.findUnique({
+          where: { user_id: userId },
+        });
+      } catch (_) {}
+    }
+
+    if (!profile) {
+      return res.status(404).json({ message: 'Perfil não encontrado.' });
+    }
+
+    return res.status(200).json(profile);
+  } catch (err) {
+    next(err);
+  }
+}
+module.exports = { me, upsertProfile, getMyProfile };
