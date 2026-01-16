@@ -16,7 +16,7 @@ const app = express();
 
 // --- Middlewares Globais ---
 app.use(helmet()); // Proteção de cabeçalhos HTTP
-app.use(cors()); // Libera acesso para o Front-end
+app.use(cors({ origin: process.env.FRONTEND_URL, origin: 'http://localhost:3001' })); // Libera acesso para o Front-end
 app.use(express.json()); // Permite que o servidor entenda JSON
 app.use(logger);
 app.use('/alumni', alumniRoutes);
@@ -45,3 +45,5 @@ app.listen(PORT, () => {
   🛠️  Ambiente pronto para JA, TD e F.
   `);
 });
+
+module.exports = app;
