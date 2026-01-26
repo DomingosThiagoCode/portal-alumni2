@@ -15,7 +15,7 @@ const allowedOrigins = [
 
 require('dotenv').config();
 
-// Importação das rotas (as que você criou na pasta routes)
+// Importação das rotas (pasta routes)
 // const alumniRoutes = require('./routes/alumni.routes');
 
 const app = express();
@@ -27,11 +27,21 @@ app.use(cors({
     // Permite requisições sem origin (como mobile apps ou curl)
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.indexOf(origin) === -1) {
+    // Verifica se a URL está na lista fixa
+    const isAllowed = allowedOrigins.includes(origin);
+
+    // Verifica se a URL é um preview dinâmico da Vercel do projeto
+    const isVercelPreview = origin.includes('portal-alumni') && origin.endsWith('.vercel.app');
+
+    if (isAllowed || isVercelPreview) {
+      return callback(null, true);
+    } else {
+      // Log para você saber exatamente quem foi bloqueado
+      console.error(`[CORS BLOQUEOU]: ${origin}`);
       const msg = 'A política CORS para este site não permite acesso do domínio: ' + origin;
       return callback(new Error(msg), false);
     }
-    return callback(null, true);
+
   },
   credentials: true
 }));
