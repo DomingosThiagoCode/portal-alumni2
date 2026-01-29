@@ -94,6 +94,7 @@ const initialForm = {
   city: '',
   addressComplement: '',
   organization: '',
+  yearsOfExperience: '',
   role: '',
   email: '',
   phone: '',
@@ -425,6 +426,7 @@ export default function AddAlumniModal({
           : {}),
 
         organization: form.organization.trim(),
+        yearsOfExperience: form.yearsOfExperience,
         role: form.role,
         phone: form.phone.trim(),
 
@@ -861,6 +863,22 @@ export default function AddAlumniModal({
                     </optgroup>
                   ))}
                 </select>
+              }
+            />
+
+            <Field
+              label="Tempo Total de Experiência"
+              input={
+                <input
+                  type="number"
+                  name="yearsOfExperience"
+                  value={form.yearsOfExperience}
+                  onChange={(e) => { const val = e.target.value; setField('yearsOfExperience', val === '' ? '' : Number(val)); }}
+                  placeholder="ex: 5"
+                  min="0"
+                  max="60"
+                  onWheel={(e) => e.target.blur()}
+                />
               }
             />
 
