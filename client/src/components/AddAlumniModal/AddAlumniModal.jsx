@@ -261,9 +261,7 @@ export default function AddAlumniModal({
             role: p.role || '',
             phone: p.phone || '',
 
-            linkedinUser: (p.linkedinUrl || '')
-              .replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, '')
-              .replace(/\/$/, ''),
+            linkedinUser: p.linkedinUrl || '',
 
             bio: p.bio || '',
             skills: Array.isArray(p.skills)
