@@ -30,9 +30,6 @@ const Home = ({ isLoggedIn, setIsLoggedIn }) => {
   const [selectedAlumni, setSelectedAlumni] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [hasProfile, setHasProfile] = useState(false);
-  //Paginacao
-  const PAGE_SIZE = 9;
-  const [page, setPage] = useState(1);
 
   // -------------------------
   // DATA
@@ -40,6 +37,7 @@ const Home = ({ isLoggedIn, setIsLoggedIn }) => {
   async function fetchAlumni(filters = {}) {
     setLoading(true);
     setErrorMessage(null);
+
     try {
       const response = await getAlumni(filters);
       setAlumni(response.data);
@@ -92,21 +90,13 @@ const Home = ({ isLoggedIn, setIsLoggedIn }) => {
   }, [filterOptions]);
 
   const filteredAlumni = useMemo(() => {
+    const term = searchTerm.toLowerCase();
     return alumni.filter((alumnus) =>
-      (alumnus.fullName || '').toLowerCase().includes(searchTerm.toLowerCase()),
+      (alumnus.fullName || '').toLowerCase().includes(term),
     );
   }, [alumni, searchTerm]);
-  useEffect(() => {
-    setPage(1);
-  }, [searchTerm, selectedCurso, selectedAno]);
-  const totalPages = Math.max(1, Math.ceil(filteredAlumni.length / PAGE_SIZE));
 
-  const pagedAlumni = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filteredAlumni.slice(start, start + PAGE_SIZE);
-  }, [filteredAlumni, page]);
-
-  // reset de página ao mudar filtros
+  // reset de página ao mudar filtros/busca
   useEffect(() => {
     setPage(1);
   }, [searchTerm, selectedCurso, selectedAno]);
@@ -115,8 +105,11 @@ const Home = ({ isLoggedIn, setIsLoggedIn }) => {
   // PAGINAÇÃO
   // -------------------------
   const totalPages = Math.max(1, Math.ceil(filteredAlumni.length / PAGE_SIZE));
-  const start = (page - 1) * PAGE_SIZE;
-  const pageAlumni = filteredAlumni.slice(start, start + PAGE_SIZE);
+
+  const pageAlumni = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredAlumni.slice(start, start + PAGE_SIZE);
+  }, [filteredAlumni, page]);
 
   // -------------------------
   // RENDER
@@ -149,12 +142,8 @@ const Home = ({ isLoggedIn, setIsLoggedIn }) => {
 
         {!loading && (
           <p className={styles.resultsInfo}>
-            {!loading && (
-              <>
-                Mostrando <strong>{pageAlumni.length}</strong> de{' '}
-                {filteredAlumni.length} ex-alunos
-              </>
-            )}
+            Mostrando <strong>{pageAlumni.length}</strong> de{' '}
+            {filteredAlumni.length} ex-alunos
           </p>
         )}
 
@@ -192,7 +181,8 @@ const Home = ({ isLoggedIn, setIsLoggedIn }) => {
                 </button>
 
                 <span className={styles.pageInfo}>
-                  Página {page} de {totalPages}
+                  Página <strong>{page}</strong> de{' '}
+                  <strong>{totalPages}</strong>
                 </span>
 
                 <button
@@ -227,27 +217,6 @@ const Home = ({ isLoggedIn, setIsLoggedIn }) => {
             </button>
           </div>
         )}
-        <div className={styles.pagination}>
-          <button
-            className={styles.pageBtn}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-          >
-            Anterior
-          </button>
-
-          <span className={styles.pageInfo}>
-            Página <strong>{page}</strong> de <strong>{totalPages}</strong>
-          </span>
-
-          <button
-            className={styles.pageBtn}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-          >
-            Próxima
-          </button>
-        </div>
       </main>
 
       {selectedAlumni && (
@@ -266,6 +235,7 @@ const Home = ({ isLoggedIn, setIsLoggedIn }) => {
           }}
         />
       )}
+
       <div className={styles.footerDivider}></div>
       <Footer />
     </div>
