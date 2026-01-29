@@ -27,7 +27,10 @@ const createAlumnusSchema = z.object({
   addressComp: z.string().optional(),
 
   company: z.string().optional(),
-  yearsOfExperience: z.coerce.number().int().min(0).optional().nullable(),
+  yearsOfExperience: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? null : val),
+    z.coerce.number().int().min(0).nullable().optional()
+  ),
   role: z.string().optional(),
   linkedinUrl: z.string().url("URL do LinkedIn inválida").optional().or(z.literal('')),
 

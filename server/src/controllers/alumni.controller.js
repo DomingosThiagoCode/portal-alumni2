@@ -1,11 +1,5 @@
 const prisma = require('../database/prisma');
 
-/**
- * Controller responsável pela gestão de Alumni
- * JA (Ferreira): Foco em Listagem
- * TD (Domingos): Foco em Cadastro e Filtros
- */
-
 // --- LISTAGEM (Tarefa do JA) ---
 const listAlumni = async (req, res, next) => {
   try {

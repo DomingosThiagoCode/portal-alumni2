@@ -112,6 +112,7 @@ export default function AddAlumniModal({
 
   // refs pra bolha nativa (reportValidity)
   const formRef = useRef(null);
+  const expYearsInputRef = useRef(null);
   const birthInputRef = useRef(null);
   const gradYearInputRef = useRef(null);
   const phoneInputRef = useRef(null);
@@ -247,6 +248,8 @@ export default function AddAlumniModal({
               ''
             ).trim(),
             organization: (p.organization ?? p.company ?? '').trim(),
+
+            yearsOfExperience: p.yearsOfExperience || '',
 
             role: p.role || '',
             phone: p.phone || '',
@@ -414,7 +417,7 @@ export default function AddAlumniModal({
           : {}),
 
         organization: form.organization.trim(),
-        yearsOfExperience: form.yearsOfExperience,
+        yearsOfExperience: form.yearsOfExperience === '' ? null : Number(form.yearsOfExperience),
         role: form.role,
         phone: form.phone.trim(),
 
