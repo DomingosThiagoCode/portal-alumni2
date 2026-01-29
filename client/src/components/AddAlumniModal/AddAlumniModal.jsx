@@ -1034,8 +1034,6 @@ export default function AddAlumniModal({
                 : isEditing
                   ? 'Salvar Alterações'
                   : 'Adicionar Perfil'}
-              ? 'Salvar Alterações'
-                  : 'Adicionar Perfil'}
             </button>
           </footer>
         </form>
