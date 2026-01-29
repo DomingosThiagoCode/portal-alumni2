@@ -90,7 +90,8 @@ const initialForm = {
   bio: '',
   skills: [],
   photoFile: null,
-  photoPreviewUrl: '',
+  photoPreviewUrl: null, // Centralizado aqui
+  removePhoto: false,    // Flag de remoção
 };
 
 export default function AddAlumniModal({
@@ -104,23 +105,24 @@ export default function AddAlumniModal({
   const [extraErrors, setExtraErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const birthBounds = useMemo(() => getBirthDateBoundsIso(110), []);
 
   const [skillInput, setSkillInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // refs pra bolha nativa (reportValidity)
+  // Refs para validação nativa (reportValidity)
   const formRef = useRef(null);
   const expYearsInputRef = useRef(null);
   const birthInputRef = useRef(null);
   const gradYearInputRef = useRef(null);
   const phoneInputRef = useRef(null);
 
-  // input date escondido pra abrir o calendário
+  // Ref para input date escondido
   const hiddenDateRef = useRef(null);
 
-  // trava contra resets durante hidratação inicial
+  // Trava contra resets durante hidratação inicial
   const isHydratingRef = useRef(false);
 
   const {
@@ -131,7 +133,7 @@ export default function AddAlumniModal({
     loadingCities,
     isBrazil,
     hasStates,
-    needsAddressComplement, // país tem estado, mas não tem lista de cidades (ex: Bangladesh)
+    needsAddressComplement,
   } = useCountryLocations(isOpen, form.countryIso2, form.stateUf);
 
   // País sem estados: some Estado e mostra só Cidade/Região
@@ -142,7 +144,7 @@ export default function AddAlumniModal({
     setExtraErrors((prev) => ({ ...prev, [name]: '' }));
   }
 
-  // RESET SÓ QUANDO O USUÁRIO MUDA (não em useEffect)
+  // Reseta campos dependentes ao mudar País
   function handleCountryChange(e) {
     const newCountry = e.target.value;
     setForm((prev) => ({
@@ -155,6 +157,7 @@ export default function AddAlumniModal({
     setExtraErrors((prev) => ({ ...prev, stateUf: '', city: '' }));
   }
 
+  // Reseta cidade ao mudar Estado
   function handleStateChange(e) {
     const newState = e.target.value;
     setForm((prev) => ({
@@ -166,11 +169,13 @@ export default function AddAlumniModal({
     setExtraErrors((prev) => ({ ...prev, city: '' }));
   }
 
-  // sugestões de skills
+  // Sugestões de skills (considerando que ALL_SKILLS existe no escopo externo)
   const filteredSuggestions = useMemo(() => {
     const query = skillInput.trim().toLowerCase();
     if (!query) return [];
-    return ALL_SKILLS.filter(
+    // Proteção caso ALL_SKILLS ainda não esteja carregado
+    const source = typeof ALL_SKILLS !== 'undefined' ? ALL_SKILLS : [];
+    return source.filter(
       (s) => s.toLowerCase().includes(query) && !form.skills.includes(s),
     ).slice(0, 6);
   }, [skillInput, form.skills]);
@@ -198,9 +203,7 @@ export default function AddAlumniModal({
     );
   };
 
-  const [isEditing, setIsEditing] = useState(false);
-
-  // Hidrata ao abrir
+  // Hidratação dos dados ao abrir o modal
   useEffect(() => {
     if (!isOpen) return;
 
@@ -208,7 +211,7 @@ export default function AddAlumniModal({
       try {
         isHydratingRef.current = true;
 
-        // 1) pega dados da conta
+        // 1) Pega dados da conta (Auth)
         const res = await getMe();
         const me = res.data;
 
@@ -218,7 +221,7 @@ export default function AddAlumniModal({
           email: me.email || '',
         }));
 
-        // 2) tenta pegar perfil
+        // 2) Tenta pegar perfil existente (Alumni)
         try {
           const profRes = await getMyProfile();
           const p = profRes.data;
@@ -228,47 +231,38 @@ export default function AddAlumniModal({
           setForm((prev) => ({
             ...prev,
             preferredName: p.preferredName || '',
-
             birthDate: p.birthDate
               ? isoToBr(String(p.birthDate).slice(0, 10))
               : '',
-
             course: p.course || '',
             graduationYear: p.graduationYear ? String(p.graduationYear) : '',
 
-            // backend pode retornar country/state/city direto (ok)
             countryIso2: p.country || '',
             stateUf: p.state || '',
             city: (p.city || '').trim(),
+            addressComplement: (p.addressComplement || p.addressComp || '').trim(),
 
-            // COMPAT: backend antigo usa addressComp/company
-            addressComplement: (
-              p.addressComplement ??
-              p.addressComp ??
-              ''
-            ).trim(),
-            company: (p.company ?? p.company ?? '').trim(),
-
+            company: (p.company || '').trim(),
             yearsOfExperience: p.yearsOfExperience || '',
-
             role: p.role || '',
             phone: p.phone || '',
-
             linkedinUser: p.linkedinUrl || '',
-
             bio: p.bio || '',
+
+            // Se vier do banco, popula o previewUrl
+            photoPreviewUrl: p.profilePicture || null,
+            photoFile: null,
+            removePhoto: false,
+
             skills: Array.isArray(p.skills)
               ? p.skills
               : typeof p.skills === 'string' && p.skills.trim()
-                ? p.skills
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean)
+                ? p.skills.split(',').map((s) => s.trim()).filter(Boolean)
                 : [],
           }));
         } catch (err) {
           if (err?.response?.status === 404) {
-            setIsEditing(false);
+            setIsEditing(false); // Usuário novo
           } else {
             console.error(err);
           }
@@ -282,7 +276,6 @@ export default function AddAlumniModal({
           _form: 'Sessão expirada. Faça login novamente.',
         }));
       } finally {
-        // solta a trava no próximo tick (evita resets durante render inicial)
         setTimeout(() => {
           isHydratingRef.current = false;
         }, 0);
@@ -290,12 +283,14 @@ export default function AddAlumniModal({
     })();
   }, [isOpen]);
 
-  // evita leak de preview de imagem
+  // Limpeza de memória do ObjectURL da imagem
   useEffect(() => {
     return () => {
-      if (form.photoPreviewUrl) URL.revokeObjectURL(form.photoPreviewUrl);
+      if (form.photoPreviewUrl && form.photoFile) {
+        URL.revokeObjectURL(form.photoPreviewUrl);
+      }
     };
-  }, [form.photoPreviewUrl]);
+  }, [form.photoPreviewUrl, form.photoFile]);
 
   function openCalendar() {
     const el = hiddenDateRef.current;
@@ -326,15 +321,34 @@ export default function AddAlumniModal({
       return;
     }
 
-    if (form.photoPreviewUrl) URL.revokeObjectURL(form.photoPreviewUrl);
+    // Limpa URL anterior se for local
+    if (form.photoPreviewUrl && form.photoFile) {
+      URL.revokeObjectURL(form.photoPreviewUrl);
+    }
 
     const previewUrl = URL.createObjectURL(file);
+
     setForm((prev) => ({
       ...prev,
       photoFile: file,
       photoPreviewUrl: previewUrl,
+      removePhoto: false,
     }));
     setExtraErrors((prev) => ({ ...prev, photoFile: '' }));
+  }
+
+  function handleRemovePhoto() {
+    // Limpa URL da memória se for um arquivo local recém-carregado
+    if (form.photoPreviewUrl && form.photoFile) {
+      URL.revokeObjectURL(form.photoPreviewUrl);
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      photoFile: null,      // Remove o arquivo novo
+      photoPreviewUrl: null, // Remove a visualização
+      removePhoto: true,     // Marca para deletar no back
+    }));
   }
 
   function setCustomFieldError(ref, fieldName, message) {
@@ -343,15 +357,10 @@ export default function AddAlumniModal({
       ref.current.setCustomValidity(message ? 'Corrija sua informação' : '');
     }
   }
-  // função pra validação do linkedin
+
   function validateLinkedinUrl(value) {
-    if (!value.trim()) return ''; // campo opcional
-
-    const isValid =
-      /^https?:\/\/(www\.)?linkedin\.com\/(in|company|school)\/[^\s/]+/i.test(
-        value.trim(),
-      );
-
+    if (!value.trim()) return '';
+    const isValid = /^https?:\/\/(www\.)?linkedin\.com\/(in|company|school)\/[^\s/]+/i.test(value.trim());
     return isValid ? '' : 'Insira um link válido do LinkedIn.';
   }
 
@@ -368,7 +377,7 @@ export default function AddAlumniModal({
 
     const phoneMsg = validatePhone(form.phone);
     setCustomFieldError(phoneInputRef, 'phone', phoneMsg);
-    // NOVO pra verificar o LinkedIn
+
     const linkedinMsg = validateLinkedinUrl(form.linkedinUser);
     setExtraErrors((prev) => ({ ...prev, linkedinUser: linkedinMsg }));
   }
@@ -390,7 +399,7 @@ export default function AddAlumniModal({
     if (!onSubmit) {
       setExtraErrors((prev) => ({
         ...prev,
-        _form: 'Erro: ação de salvar não configurada (onSubmit ausente).',
+        _form: 'Erro: ação de salvar não configurada.',
       }));
       return;
     }
@@ -402,7 +411,6 @@ export default function AddAlumniModal({
       const birthIsoDate = form.birthDate?.trim() ? brToIso(form.birthDate.trim()) : '';
       const birthIsoDateTime = birthIsoDate ? `${birthIsoDate}T00:00:00.000Z` : null;
 
-      // Tratamento seguro para números
       const safeNumber = (val) => {
         if (val === '' || val === null || val === undefined) return null;
         const num = Number(val);
@@ -416,7 +424,7 @@ export default function AddAlumniModal({
         email: form.email?.trim(),
         preferredName: form.preferredName?.trim(),
         birthDate: birthIsoDateTime,
-        course: form.course, // Verifique se isso não é undefined no state
+        course: form.course,
         graduationYear: safeNumber(form.graduationYear),
         country: form.countryIso2,
         state: hasStates ? form.stateUf : null,
@@ -431,37 +439,23 @@ export default function AddAlumniModal({
         skills: Array.isArray(form.skills) ? form.skills.join(',') : '',
       };
 
-      // Debug: Verificar o que está sendo montado ANTES de entrar no FormData
-      console.log("Payload Base:", payloadData);
-
       Object.entries(payloadData).forEach(([key, value]) => {
-        // Verifica null, undefined E strings vazias se necessário (opcional)
         if (value !== null && value !== undefined) {
           formData.append(key, value);
         }
       });
 
+      // Lógica de envio da imagem
       if (form.photoFile) {
         formData.append('profilePicture', form.photoFile);
       }
 
-      // Debug: Iterar sobre o FormData final para garantir que não está vazio
-      console.log("--- Enviando FormData ---");
-      let hasEntries = false;
-      for (let pair of formData.entries()) {
-        console.log(pair[0] + ': ' + pair[1]);
-        hasEntries = true;
-      }
+      // Flag para remover foto antiga
+      formData.append('removePhoto', form.removePhoto ? 'true' : 'false');
 
-      if (!hasEntries) {
-        console.warn("⚠️ O FormData está vazio! Verifique o estado 'form'.");
-      }
-
-      // AQUI ESTÁ O PULO DO GATO:
-      // Certifique-se que onSubmit está repassando esse argumento para a API
       await onSubmit(formData);
-
       onClose?.();
+
     } catch (err) {
       console.error("Erro no submit:", err);
       const backendMsg =
@@ -469,7 +463,6 @@ export default function AddAlumniModal({
         err?.message ||
         'Não foi possível salvar seu perfil.';
 
-      // ... resto da sua lógica de erro
       setExtraErrors((prev) => ({
         ...prev,
         _form: backendMsg,
@@ -478,6 +471,7 @@ export default function AddAlumniModal({
       setIsSubmitting(false);
     }
   }
+
   if (!isOpen) return null;
 
   return (
@@ -509,40 +503,49 @@ export default function AddAlumniModal({
         >
           {/* FOTO */}
           <section className="photoSection">
+            {/* 1. Esquerda: Círculo da Foto */}
             <div className="photoCircle">
               {form.photoPreviewUrl ? (
                 <img
-                  className="photoImg"
                   src={form.photoPreviewUrl}
-                  alt="Prévia da foto do perfil"
+                  alt="Preview"
+                  className="photoImg"
                 />
               ) : (
-                <span className="photoIcon" aria-hidden="true">
-                  📷
-                </span>
+                // Placeholder simplificado
+                <span className="photoIcon">👤</span>
               )}
             </div>
 
-            <div className="photoControls">
-              <label className="photoLabel">Foto do Perfil</label>
+            {/* 2. Direita: Botões e Ações */}
+            <div className="photoActions">
 
-              <div className="photoActions">
+              {/* Botão de Upload (Label atua como botão) */}
+              <label className="photoButton">
+                {form.photoPreviewUrl ? 'Trocar Foto' : 'Adicionar Foto'}
                 <input
-                  id="photo-input"
                   type="file"
-                  accept="image/png,image/jpeg"
-                  className="fileInput"
+                  accept="image/png, image/jpeg"
+                  className="fileInput" // A classe que esconde o input real
                   onChange={handlePhotoChange}
                 />
-                <label htmlFor="photo-input" className="photoButton">
-                  Escolher Foto
-                </label>
-                <span className="photoHint">JPG, PNG até 5MB</span>
-              </div>
+              </label>
 
-              {extraErrors.photoFile ? (
-                <p className="errorText">{extraErrors.photoFile}</p>
-              ) : null}
+              {/* Botão de Remover */}
+              {form.photoPreviewUrl && (
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  className="removeButton"
+                >
+                  Remover foto
+                </button>
+              )}
+
+              {/* Mensagem de Erro */}
+              {extraErrors?.photoFile && (
+                <span className="errorText">{extraErrors.photoFile}</span>
+              )}
             </div>
           </section>
 
@@ -1072,3 +1075,5 @@ function Field({ label, required, hint, error, input, fullWidth }) {
     </div>
   );
 }
+
+

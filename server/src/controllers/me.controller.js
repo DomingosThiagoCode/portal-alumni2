@@ -1,5 +1,4 @@
 const prisma = require('../database/prisma');
-// 1. IMPORTANTE: Importamos o cloudinary que configuramos no passo anterior
 const { cloudinary } = require('../config/cloudinary');
 
 function getUserModel() {
@@ -29,14 +28,6 @@ async function me(req, res, next) {
 
 async function upsertProfile(req, res, next) {
   try {
-    // --- DEBUG: VERIFICANDO O QUE CHEGA DO FRONTEND ---
-    console.log('--- DEBUG CONTROLLER (Memory Storage) ---');
-    console.log('1. Texto (Body):', req.body);
-    // Agora verificamos se existe o buffer, não o path
-    console.log('2. Arquivo:', req.file ? `Recebido (Tamanho: ${req.file.size} bytes)` : 'NENHUMA IMAGEM');
-    console.log('------------------------');
-    // --------------------------------------------------
-
     const User = getUserModel();
     const Alumnus = getAlumnusModel();
 
@@ -46,9 +37,14 @@ async function upsertProfile(req, res, next) {
     const fullName = u.fullName ?? u.full_name;
     const data = req.body;
 
-    // --- LÓGICA DE UPLOAD MANUAL PARA O CLOUDINARY ---
-    let profilePictureUrl = null;
+    // --- LÓGICA DE UPLOAD E REMOÇÃO DE IMAGEM ---
 
+    // undefined = não mexe no banco (mantém a atual)
+    // null = apaga a foto do banco
+    // string = salva a nova url
+    let profilePictureUrl = undefined;
+
+    // CASO 1: Usuário enviou uma nova foto
     if (req.file) {
       try {
         console.log('📤 Iniciando upload manual da imagem para o Cloudinary...');
@@ -67,9 +63,14 @@ async function upsertProfile(req, res, next) {
         profilePictureUrl = result.secure_url;
       } catch (uploadError) {
         console.error('❌ Erro ao enviar para o Cloudinary:', uploadError);
-        // Opcional: retornar erro para o usuário ou continuar sem a foto
         throw new Error('Falha ao processar a imagem do perfil.');
       }
+    }
+    // CASO 2: Usuário pediu para remover a foto (e não enviou uma nova)
+    // O FormData envia booleanos como string "true"
+    else if (data.removePhoto === 'true' || data.removePhoto === true) {
+      console.log('🗑️ Usuário solicitou remoção da foto.');
+      profilePictureUrl = null;
     }
 
     // mapeia campos do front -> campos do model Alumnus
@@ -96,9 +97,11 @@ async function upsertProfile(req, res, next) {
       bio: data.bio || null,
       skills: Array.isArray(data.skills) ? data.skills : [],
 
-      // Se profilePictureUrl foi preenchido pelo upload acima, salva no banco.
-      // Caso contrário, mantém o que já estava no banco (não sobrescreve com null).
-      ...(profilePictureUrl && { profilePicture: profilePictureUrl }),
+      // Lógica crucial:
+      // Se for undefined (nada mudou), essa chave nem entra no objeto (Prisma ignora).
+      // Se for null (remover), entra como null e limpa o banco.
+      // Se for string (nova foto), entra a URL nova.
+      ...(profilePictureUrl !== undefined && { profilePicture: profilePictureUrl }),
     };
 
     const tryUpsert = async (key) => {
