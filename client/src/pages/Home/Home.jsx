@@ -85,9 +85,19 @@ const Home = ({ isLoggedIn, setIsLoggedIn }) => {
   const handleCloseModal = () => setSelectedAlumni(null);
 
   const filteredAlumni = useMemo(() => {
-    return alumni.filter((alumnus) =>
-      (alumnus.fullName || '').toLowerCase().includes(searchTerm.toLowerCase()),
-    );
+    // Função auxiliar para remover acentos e deixar em minúsculo
+    const normalize = (str) =>
+      str
+        .normalize('NFD')                     // Decompõe os caracteres (é -> e + ´)
+        .replace(/[\u0300-\u036f]/g, "")      // Remove os acentos (os sinais diacríticos)
+        .toLowerCase();
+
+    const search = normalize(searchTerm);
+
+    return alumni.filter((alumnus) => {
+      const name = normalize(alumnus.fullName || '');
+      return name.includes(search);
+    });
   }, [alumni, searchTerm]);
 
   return (
