@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search } from 'lucide-react';
+import { Calendar, Search } from 'lucide-react';
 import styles from './SearchBar.module.css';
 
 const SearchBar = ({
