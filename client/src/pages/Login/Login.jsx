@@ -5,6 +5,7 @@ import styles from './Login.module.css';
 import { login, register } from '../../services/api';
 // 1. Importe o componente
 import ErrorBanner from '../../components/ErrorBanner/ErrorBanner';
+import { Eye, EyeOff, Mail, Search } from 'lucide-react';
 
 const Login = ({ setIsLoggedIn }) => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const Login = ({ setIsLoggedIn }) => {
 
   // Mantemos o estado de erro que você já tinha
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -58,10 +60,10 @@ const Login = ({ setIsLoggedIn }) => {
 
       if (data?.errors?.length) {
         // Se o seu middleware retorna 'errors' do Zod:
-        msg = data.errors.map(e => e.mensagem).join(' | ');
+        msg = data.errors.map((e) => e.mensagem).join(' | ');
       } else if (data?.issues?.length) {
         // Fallback para o formato 'issues'
-        msg = data.issues.map(i => i.message).join(' | ');
+        msg = data.issues.map((i) => i.message).join(' | ');
       }
 
       setError(msg);
@@ -75,45 +77,52 @@ const Login = ({ setIsLoggedIn }) => {
         <p>Apenas membros cadastrados podem adicionar novos ex-alunos.</p>
 
         {/* 2. Substituímos o <p> antigo pelo ErrorBanner */}
-        <ErrorBanner
-          message={error}
-          onClose={() => setError('')}
-        />
+        <ErrorBanner message={error} onClose={() => setError('')} />
 
         {isRegister && (
-          <input
-            type="text"
-            placeholder="Nome"
-            required
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-          />
+          <div className={styles.inputBox}>
+            <input
+              type="text"
+              placeholder="Nome Completo"
+              required
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+            />
+          </div>
         )}
-
-        <input
-          type="email"
-          placeholder="E-mail"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <input
-          type="password"
-          placeholder="Senha"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <div className={styles.inputBox}>
+          <input
+            type="email"
+            placeholder="E-mail"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <Mail color="#666" size={20} />
+        </div>
+        <div className={styles.inputBox}>
+          <input
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Senha"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <span onClick={() => setShowPassword(!showPassword)}>
+            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+          </span>
+        </div>
 
         {isRegister && (
-          <input
-            type="password"
-            placeholder="Confirme a senha"
-            required
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
+          <div className={styles.inputBox}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Confirme a senha"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </div>
         )}
 
         <button type="submit" className={styles.loginBtn}>

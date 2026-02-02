@@ -1,47 +1,82 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const alumniRoutes = require('./routes/alumni.routes');
-const { errorMiddleware } = require('./middlewares/error.middleware');
-const { logger } = require('./middlewares/logger.middleware');
-const authRoutes = require('./routes/auth.routes');
-const meRoutes = require('./routes/me.routes');
-
 require('dotenv').config();
 
-// Importação das rotas (as que você criou na pasta routes)
-// const alumniRoutes = require('./routes/alumni.routes');
+// Importação das rotas
+const alumniRoutes = require('./routes/alumni.routes');
+const authRoutes = require('./routes/auth.routes');
+const meRoutes = require('./routes/me.routes');
+const { errorMiddleware } = require('./middlewares/error.middleware');
+const { logger } = require('./middlewares/logger.middleware');
 
 const app = express();
 
-// --- Middlewares Globais ---
-app.use(helmet()); // Proteção de cabeçalhos HTTP
-app.use(cors()); // Libera acesso para o Front-end
-app.use(express.json()); // Permite que o servidor entenda JSON
+const allowedOrigins = [
+  'http://localhost:3001',
+  'http://localhost:5173',
+  'https://portal-alumni-ruddy.vercel.app'
+];
+
+// --- 1. LOGGER DE EMERGÊNCIA (DEVE SER O PRIMEIRO) ---
+app.use((req, res, next) => {
+  console.log(`[DEBUG] Chamada: ${req.method} ${req.url} - Origin: ${req.headers.origin}`);
+  next();
+});
+
+// --- 2. HELMET (CONFIGURADO PARA NÃO BARRAR LOCALHOST) ---
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+// --- 3. CONFIGURAÇÃO DO CORS ---
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+
+    const isAllowed = allowedOrigins.includes(origin);
+    const isVercelPreview = origin.includes('portal-alumni') && origin.endsWith('.vercel.app');
+
+    if (isAllowed || isVercelPreview) {
+      return callback(null, true);
+    } else {
+      console.error(`[CORS BLOQUEOU]: ${origin}`);
+      return callback(new Error('CORS Not Allowed'), false);
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  credentials: true,
+  optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
+
+// --- 4. TRATAMENTO EXPLÍCITO DE PREFLIGHT (OPTIONS) ---
+// Isso garante que o navegador receba um OK antes de tentar o envio pesado da foto
+app.options('*', cors(corsOptions));
+
+// --- 5. PARSERS E OUTROS MIDDLEWARES ---
+app.use(express.json());
 app.use(logger);
+
+// --- 6. ROTAS ---
 app.use('/alumni', alumniRoutes);
 app.use('/auth', authRoutes);
 app.use('/me', meRoutes);
 
-// --- Rota de Teste (Health Check) ---
 app.get('/', (req, res) => {
-  res.status(200).json({
-    projeto: 'Portal Alumni',
-    status: 'Online',
-    timestamp: new Date().toISOString(),
-  });
+  res.status(200).json({ status: 'Online' });
 });
 
-// --- Configuração de Rotas Futuras ---
-// app.use('/alumni', alumniRoutes);
-
-// --- Inicialização do Servidor ---
-const PORT = process.env.PORT || 3001;
+// --- 7. ERROS ---
 app.use(errorMiddleware);
-app.listen(PORT, () => {
-  console.log(`
-  🚀 Servidor voando!
-  📡 URL: http://localhost:${PORT}
-  🛠️  Ambiente pronto para JA, TD e F.
-  `);
-});
+
+const PORT = process.env.PORT || 3001;
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
