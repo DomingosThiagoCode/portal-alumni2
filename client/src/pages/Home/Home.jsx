@@ -186,26 +186,44 @@ const Home = ({ isLoggedIn, setIsLoggedIn }) => {
 
 
             {totalPages > 1 && (
-              <div className={styles.pagination}>
+              <div className={styles.paginationWrapper}>
+                {/* Botão Anterior */}
                 <button
-                  className={styles.pageBtn}
+                  className={styles.controlPageBtn}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
                 >
-                  Anterior
+                  &lt; 
                 </button>
 
-                <span className={styles.pageInfo}>
-                  Página <strong className={styles.pageNumber}>{page}</strong> de{' '}
-                  <strong className={styles.pageNumber}>{totalPages}</strong>
-                </span>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => {
+                  if ( num === 1 || num === totalPages || (num >= page - 1 && num <= page + 1) ) {
+                    return (
+                      <button
+                        key={num}
+                        className={`${styles.circleBtn} ${page === num ? styles.active : ''}`}
+                        onClick={() => setPage(num)}
+                      >
+                        {num}
+                      </button>
+                    );
+                  }
 
+                  // Adiciona reticências (...) entre os saltos
+                  if (num === page - 2 || num === page + 2) {
+                    return <span key={num} className={styles.dots}>...</span>;
+                  }
+
+                  return null;
+                })}
+
+                {/* Botão Próximo */}
                 <button
-                  className={styles.pageBtn}
+                  className={styles.controlPageBtn}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                 >
-                  Próxima
+                  &gt; 
                 </button>
               </div>
             )}
