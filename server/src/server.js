@@ -16,7 +16,9 @@ const allowedOrigins = [
   'http://localhost:3001',
   'http://localhost:5173',
   'https://alumniime.com.br',
-  'https://portal-alumni-ruddy.vercel.app'
+  'https://portal-alumni-ruddy.vercel.app',
+  'http://portal.alumniime.com.br',  // Provisório (para testes amanhã cedo)
+  'https://portal.alumniime.com.br'
 ];
 
 // --- 1. LOGGER DE EMERGÊNCIA (DEVE SER O PRIMEIRO) ---
