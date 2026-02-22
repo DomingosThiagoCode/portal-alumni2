@@ -15,6 +15,7 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:3001',
   'http://localhost:5173',
+  'https://alumniime.com.br',
   'https://portal-alumni-ruddy.vercel.app'
 ];
 
@@ -73,10 +74,8 @@ app.get('/', (req, res) => {
 app.use(errorMiddleware);
 
 const PORT = process.env.PORT || 3001;
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-  });
-}
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+});
 
 module.exports = app;

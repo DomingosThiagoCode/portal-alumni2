@@ -8,7 +8,7 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   return (
-    <Router>
+    <Router basename="/portal">
       <Routes>
         <Route path="/" element={
           <Home isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
