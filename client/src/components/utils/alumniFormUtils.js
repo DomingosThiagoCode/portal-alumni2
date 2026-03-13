@@ -115,25 +115,17 @@ export function validateGraduationYear(br, yearRaw) {
 
   const currentYear = new Date().getFullYear();
 
-  // Não dá pra “já ter se formado” em ano futuro
-  // if (year > currentYear) {
-  //   return `Ano de formatura deve ser antes que ${currentYear}.`;
-  // }
-
-  // if (year < br) {
-  //   return `Ano de formatura deve ser antes que ${currentYear}.`;
-  // }
-
   if (birthYear > graduationYear){
     return `Ano da formatura ${graduationYear} não pode anteceder ano de nascimento ${birthYear}!`;
   }
-
+  if (birthYear < 1960){
+    return `Ano da formatura ${graduationYear} não pode ser inferior a 1960!`;
+  }
+  if (graduationYear > currentYear+4){
+    return `Ano da formatura ${graduationYear} não pode maior que ${currentYear+4}!`;
+  }
   if (graduationYear - birthYear < 21){
     return `Ano da formatura ${graduationYear} tem que ser pelo menos maior que ${birthYear+21}!`;
-  }
-  // sanity (opcional, mas bom)
-  if (year < 1900) {
-    return 'Ano de formatura muito antigo. Verifique.';
   }
 
   return '';
