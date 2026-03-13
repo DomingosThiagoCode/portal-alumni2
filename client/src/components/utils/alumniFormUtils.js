@@ -113,7 +113,7 @@ export function validateGraduationYear(br, yearRaw) {
 
   // Valida limite no futuro (+4 anos)
   if (year > currentYear + 4) {
-    return `Ano de formatura deve ser antes de ${currentYear + 5}.`;
+    return `Ano de formatura deve ser até ${currentYear + 4}.`;
   }
 
   // Sanity check de passado distante
@@ -130,12 +130,9 @@ export function validateGraduationYear(br, yearRaw) {
 
     // Se a extração deu certo e é um número válido
     if (!isNaN(birthYear) && birthYear > 0) {
-
-      // Regra principal: Formatura tem que ser DEPOIS do nascimento
       if (year <= birthYear) {
         return `O ano de formatura (${year}) deve ser maior que o ano de nascimento (${birthYear}).`;
       }
-
       // Ninguém se forma na faculdade com menos de ~13 anos de idade.
       if (year - birthYear < 13) {
         return 'Verifique as datas: a idade na formatura parece incorreta.';

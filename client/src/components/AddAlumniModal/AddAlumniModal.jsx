@@ -1874,7 +1874,7 @@ export default function AddAlumniModal({
                     setExtraErrors((prev) => ({ ...prev, graduationYear: '' }));
                   }}
                   onBlur={() => {
-                    const msg = validateGraduationYear(form.graduationYear, form.graduationYear);
+                    const msg = validateGraduationYear(form.birthDate, form.graduationYear);
                     setCustomFieldError(
                       gradYearInputRef,
                       'graduationYear',
