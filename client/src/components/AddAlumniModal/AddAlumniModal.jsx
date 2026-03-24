@@ -8,6 +8,7 @@ import {
   Calendar,
   CalendarDays,
 } from 'lucide-react';
+import Fuse from 'fuse.js';
 
 import { getMe, getMyProfile } from '../../services/api';
 
@@ -137,18 +138,28 @@ export default function AddAlumniModal({
     setExtraErrors((prev) => ({ ...prev, city: '' }));
   }
 
+  const fuse = useMemo(() => {
+    const source = typeof ALL_SKILLS !== 'undefined' ? ALL_SKILLS : [];
+    
+    return new Fuse(source, {
+      keys: ['nome', 'tags'], 
+      threshold: 0.3,        
+      ignoreLocation: true,  
+    });
+  }, []);
+
+
   // Sugestões de skills (considerando que ALL_SKILLS existe no escopo externo)
   const filteredSuggestions = useMemo(() => {
     const query = skillInput.trim().toLowerCase();
     if (!query) return [];
     // Proteção caso ALL_SKILLS ainda não esteja carregado
-    const source = typeof ALL_SKILLS !== 'undefined' ? ALL_SKILLS : [];
-    return source
-      .filter(
-        (s) => s.toLowerCase().includes(query) && !form.skills.includes(s),
-      )
-      .slice(0, 6);
-  }, [skillInput, form.skills]);
+    const resultados = fuse.search(query);
+    return resultados
+      .map((resultado) => resultado.item.nome)
+      .filter((nome) => !form.skills.includes(nome))
+      .slice(0, 20);
+  }, [skillInput, form.skills, fuse]);
 
   const addSkill = (skill) => {
     const cleanSkill = skill.trim();
