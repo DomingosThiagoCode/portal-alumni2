@@ -1,5 +1,5 @@
 import React from 'react';
-import { GraduationCap, Calendar, MapPin, Building, Mail, Phone, Linkedin } from 'lucide-react';
+import { GraduationCap, Calendar, MapPin, Building, Mail, Phone, Linkedin} from 'lucide-react';
 import styles from './AlumniCard.module.css';
 
 const AlumniCard = ({ data, onClick }) => {
