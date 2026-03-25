@@ -10,6 +10,8 @@ import Home from './pages/Home/Home';
 import Login from './pages/Login/Login';
 import ForgotPassword from './pages/ForgotPassword/ForgotPassword';
 import ResetPassword from './pages/ResetPassword/ResetPassword';
+// 1. IMPORTANTE: Importe a sua tela de VerifyEmail (ajuste o caminho se necessário)
+import VerifyEmail from './pages/VerifyEmail/VerifyEmail'; 
 import './index.css';
 
 function App() {
@@ -47,6 +49,10 @@ function App() {
 
         <Route path="/reset-password" element={<ResetPassword />} />
 
+        {/* 2. A ROTA NOVA PARA O LINK DO E-MAIL BATER AQUI */}
+        <Route path="/confirm-email" element={<VerifyEmail />} />
+
+        {/* Catch-all (Coringa) - Sempre deve ficar por último */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

@@ -15,10 +15,10 @@ const transporter = nodemailer.createTransport({
 async function sendEmail(to, subject, htmlBody) {
   try {
     const mailOptions = {
-      from: `"Portal Alumni" <${process.env.SMTP_USER}>`, // Remetente
-      to,                                               // Destinatário
-      subject,                                          // Assunto
-      html: htmlBody,                                   // Corpo em HTML
+      from: `"Portal Alumni" <${process.env.SMTP_USER}>`, 
+      to,                                               
+      subject,                                          
+      html: htmlBody,                                   
     };
 
     const info = await transporter.sendMail(mailOptions);
@@ -31,10 +31,7 @@ async function sendEmail(to, subject, htmlBody) {
 }
 
 // 3. Casos de Uso Específicos
-
-// E-mail de Confirmação de Cadastro
 async function sendConfirmationEmail(userEmail, userName, token) {
-  // Monta o link que o usuário vai clicar para confirmar
   const confirmationLink = `${process.env.FRONTEND_URL}/confirm-email?token=${token}`;
 
   const subject = 'Confirme seu cadastro no Portal Alumni';
@@ -50,9 +47,7 @@ async function sendConfirmationEmail(userEmail, userName, token) {
   return sendEmail(userEmail, subject, htmlBody);
 }
 
-// E-mail de Redefinição de Senha
 async function sendPasswordResetEmail(userEmail, userName, token) {
-  // Monta o link para redefinir a senha
   const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
   const subject = 'Redefinição de Senha - Portal Alumni';
