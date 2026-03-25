@@ -1,8 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  // baseURL: 'http://localhost:3001',  //Teste locais
-  baseURL: 'api/'           //No debian
+  baseURL: 'http://localhost:3001',
 });
 
 // Interceptor do Token
