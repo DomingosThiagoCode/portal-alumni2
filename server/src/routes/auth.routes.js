@@ -8,4 +8,6 @@ const { validateBody } = require('../middlewares/validate.middleware');
 router.post('/register', validateBody(registerSchema), authController.register);
 router.post('/login', validateBody(loginSchema), authController.login);
 
+router.post('/verify-email', authController.verifyEmail);
+
 module.exports = router;
